@@ -1,11 +1,32 @@
+terraform {
+  required_version = ">= 1.5.0"
+  required_providers {
+    proxmox = {
+      source  = "bpg/proxmox"
+      version = "0.68.0"
+    }
+  }
+}
+
 # ১. Load Balancer Node 1
 resource "proxmox_virtual_environment_vm" "lb_node_1" {
   name      = "lb-node-1"
-  node_name = "pve" # আপনার Proxmox Node-এর নাম
+  node_name = "pve"
   vm_id     = 101
 
   clone {
-    vm_id = 9000 # আপনার Cloud-Init Template ID
+    vm_id = 9000
+  }
+
+  boot_order = ["scsi0", "net0"]
+
+  operating_system {
+    type = "l26"
+  }
+
+  network_device {
+    bridge = "vmbr0"
+    model  = "virtio"
   }
 
   initialization {
@@ -40,6 +61,17 @@ resource "proxmox_virtual_environment_vm" "lb_node_2" {
     vm_id = 9000
   }
 
+  boot_order = ["scsi0", "net0"]
+
+  operating_system {
+    type = "l26"
+  }
+
+  network_device {
+    bridge = "vmbr0"
+    model  = "virtio"
+  }
+
   initialization {
     ip_config {
       ipv4 {
@@ -49,7 +81,7 @@ resource "proxmox_virtual_environment_vm" "lb_node_2" {
     }
     user_account {
       username = "ubuntu"
-      keys     = [file("~/.ssh/id_rsa.pub")]
+      keys     = [file(pathexpand("~/.ssh/id_rsa.pub"))]
     }
   }
 
@@ -72,6 +104,17 @@ resource "proxmox_virtual_environment_vm" "backend_1" {
     vm_id = 9000
   }
 
+  boot_order = ["scsi0", "net0"]
+
+  operating_system {
+    type = "l26"
+  }
+
+  network_device {
+    bridge = "vmbr0"
+    model  = "virtio"
+  }
+
   initialization {
     ip_config {
       ipv4 {
@@ -81,7 +124,7 @@ resource "proxmox_virtual_environment_vm" "backend_1" {
     }
     user_account {
       username = "ubuntu"
-      keys     = [file("~/.ssh/id_rsa.pub")]
+      keys     = [file(pathexpand("~/.ssh/id_rsa.pub"))]
     }
   }
 
@@ -104,6 +147,17 @@ resource "proxmox_virtual_environment_vm" "backend_2" {
     vm_id = 9000
   }
 
+  boot_order = ["scsi0", "net0"]
+
+  operating_system {
+    type = "l26"
+  }
+
+  network_device {
+    bridge = "vmbr0"
+    model  = "virtio"
+  }
+
   initialization {
     ip_config {
       ipv4 {
@@ -113,7 +167,7 @@ resource "proxmox_virtual_environment_vm" "backend_2" {
     }
     user_account {
       username = "ubuntu"
-      keys     = [file("~/.ssh/id_rsa.pub")]
+      keys     = [file(pathexpand("~/.ssh/id_rsa.pub"))]
     }
   }
 

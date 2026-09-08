@@ -1,0 +1,115 @@
+---
+# ১. Backend Web Servers (Nginx Setup)
+- name: Configure Backend Web Servers
+  hosts: webservers
+  become: yes
+  tasks:
+    - name: Install Nginx
+      apt:
+        name: nginx
+        state: present
+        update_cache: yes
+
+    - name: Create Custom HTML Page
+      copy:
+        content: "<h1>Hello from {{ server_name }} (IP: {{ ansible_host }})</h1>\n"
+        dest: /var/www/html/index.html
+
+    - name: Ensure Nginx is running
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+# ২. Load Balancers (HAProxy & Keepalived Setup)
+- name: Configure High Availability Load Balancers
+  hosts: loadbalancers
+  become: yes
+  tasks:
+    - name: Install HAProxy and Keepalived
+      apt:
+        name:
+          - haproxy
+          - keepalived
+        state: present
+        update_cache: yes
+
+    - name: Enable Non-local IP Binding (Required for VIP)
+      sysctl:
+        name: net.ipv4.ip_nonlocal_bind
+        value: "1"
+        state: present
+        reload: yes
+
+    - name: Configure HAProxy
+      copy:
+        dest: /etc/haproxy/haproxy.cfg
+        content: |
+          global
+              log /dev/log local0
+              log /dev/log local1 notice
+              user haproxy
+              group haproxy
+              daemon
+
+          defaults
+              log     global
+              mode    http
+              option  httplog
+              option  dontlognull
+              timeout connect 5000ms
+              timeout client  50000ms
+              timeout server  50000ms
+
+          frontend http_front
+              bind *:80
+              stats uri /haproxy?stats
+              default_backend http_back
+
+          backend http_back
+              balance roundrobin
+              server backend-1 192.168.122.21:80 check
+              server backend-2 192.168.122.22:80 check
+
+    - name: Restart and Enable HAProxy
+      service:
+        name: haproxy
+        state: restarted
+        enabled: yes
+
+    - name: Configure Keepalived
+      copy:
+        dest: /etc/keepalived/keepalived.conf
+        content: |
+          vrrp_script check_haproxy {
+              script "killall -0 haproxy"
+              interval 2
+              weight 2
+          }
+
+          vrrp_instance VI_1 {
+              state {{ keepalived_role }}
+              interface {{ network_interface }}
+              virtual_router_id 51
+              priority {{ priority }}
+              advert_int 1
+
+              authentication {
+                  auth_type PASS
+                  auth_pass 4321HA
+              }
+
+              virtual_ipaddress {
+                  {{ virtual_ip }}
+              }
+
+              track_script {
+                  check_haproxy
+              }
+          }
+
+    - name: Restart and Enable Keepalived
+      service:
+        name: keepalived
+        state: restarted
+        enabled: yes
